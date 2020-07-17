@@ -1,116 +1,93 @@
-/* L-19 MCS 572 Wed 5 Oct 2016 : jacobi.c
- * This program runs the Jacobi method on a test system A*x = b,
- * where A is diagonally dominant and the exact solution consists
- * of all ones.  The dimension can be supplied at the command line. */
+/*This program is an implementaion of the Jacobi iteration method.
+The relation used is
+X(k+1)=(Diagonal matrix Inverse)(RHS Coefficient-)*(Lower triangle+Upper triangle)X(k))
+*/
+#include<stdio.h>
 
-#include <stdio.h>
-#include <stdlib.h>
-
-void test_system
-(int n, double **A, double *b);
-/*
- * Given n on entry,
- * On return is an n-by-n matrix A
- * with n+1 on the diagonal and 1 elsewhere.
- * The elements of the right hand side b
- * all equal 2*n, so the exact solution x
- * to A*x = b is a vector of ones. */
-
-void run_jacobi_method
-(int n, double **A, double *b,
-	double epsilon, int maxit,
-	int *numit, double *x);
-/*
- * Runs the Jacobi method for A*x = b.
- *
- * ON ENTRY :
- *   n        the dimension of the system;
- *   A        an n-by-n matrix A[i][i] /= 0;
- *   b        an n-dimensional vector;
- *   epsilon  accuracy requirement;
- *   maxit    maximal number of iterations;
- *   x        start vector for the iteration.
- *
- * ON RETURN :
- *   numit    number of iterations used;
- *   x        approximate solution to A*x = b. */
-
-int main(int argc, char *argv[])
+float coeff[10][10];
+float Dinv[10][10];
+float approx[10][1];
+float temp[10][1];
+float tempApprox[10][1];
+float R[10][10];//declare the relevant matrices
+float matrixRes[10][1];
+float b[10][1];
+int row, column, size = 3, navigate;
+float epsilon = (1 + 2 ^ -52) - 1;
+void multiply(float matrixA[][10], float matrixB[][1])
 {
-	int n, i;
-	if (argc > 1)
-		n = atoi(argv[1]);
-	else
+	int ctr, ictr;
+	//function to perform multiplication
+	for (ctr = 0; ctr < size; ctr++)
 	{
-		printf("give the dimension : ");
-		scanf_s("%d", &n);
-	}
-	{
-		double *b;
-		b = (double*)calloc(n, sizeof(double));
-		double **A;
-		A = (double**)calloc(n, sizeof(double*));
-		for (i = 0; i < n; i++)
-			A[i] = (double*)calloc(n, sizeof(double));
-		test_system(n, A, b);
-		double *x;
-		x = (double*)calloc(n, sizeof(double));
-		/* we start at an array of all zeroes */
-		for (i = 0; i < n; i++) x[i] = 0.0;
-		double eps = 1.0e-4;
-		int maxit = 2 * n*n;
-		int cnt = 0;
-		run_jacobi_method(n, A, b, eps, maxit, &cnt, x);
-		printf("computed %d iterations\n", cnt);
-		double sum = 0.0;
-		for (i = 0; i < n; i++) /* compute the error */
-		{
-			double d = x[i] - 1.0;
-			sum += (d >= 0.0) ? d : -d;
-		}
-		printf("error : %.3e\n", sum);
-	}
-	return 0;
-}
-
-void test_system
-(int n, double **A, double *b)
-{
-	int i, j;
-	for (i = 0; i < n; i++)
-	{
-		b[i] = 2.0*n;
-		for (j = 0; j < n; j++) A[i][j] = 1.0;
-		A[i][i] = n + 1.0;
+		matrixRes[ctr][0] = 0;
+		for (navigate = 0; navigate < size; navigate++)
+			matrixRes[ctr][0] = matrixRes[ctr][0] + matrixA[ctr][navigate] * matrixB[navigate][0];
 	}
 }
-
-void run_jacobi_method
-(int n, double **A, double *b,
-	double epsilon, int maxit,
-	int *numit, double *x)
+int main()
 {
-	double *dx, *y;
-	dx = (double*)calloc(n, sizeof(double));
-	y = (double*)calloc(n, sizeof(double));
-	int i, j, k;
-
-	for (k = 0; k < maxit; k++)
-	{
-		double sum = 0.0;
-		for (i = 0; i < n; i++)
+	/*printf("Enter the number of unknown(below 10)\n");
+	scanf_s("%d", &size);//enter the size*/
+	printf("Enter the coefficent matrix\n");
+	for (row = 0; row < size; row++)
+		for (column = 0; column < size; column++)
+			scanf_s("%f", &coeff[row][column]);
+	//printf("Enter the first approximation\n");
+	for (row = 0; row < size; row++)
+		approx[row][0] = 0;
+	printf("Enter the RHS coefficient\n");
+	for (row = 0; row < size; row++)
+		scanf_s("%f", &b[row][0]);
+	for (row = 0; row < size; row++)//We calculate the diagonal inverse matrix make all other entries as zero except Diagonal entries whose resciprocal we store
+		for (column = 0; column < size; column++)
 		{
-			dx[i] = b[i];
-			for (j = 0; j < n; j++)
-				dx[i] -= A[i][j] * x[j];
-			dx[i] /= A[i][i];
-			y[i] += dx[i];
-			sum += ((dx[i] >= 0.0) ? dx[i] : -dx[i]);
+			if (row == column)
+				Dinv[row][column] = 1 / coeff[row][column];
+			else
+				Dinv[row][column] = 0;
 		}
-		for (i = 0; i < n; i++) x[i] = y[i];
-		printf("%4d : %.3e\n", k, sum);
-		if (sum <= epsilon) break;
-	}
-	*numit = k + 1;
-	free(dx); free(y);
+	for (row = 0; row < size; row++)
+		for (column = 0; column < size; column++)//calculating the R matrix L+U
+		{
+			if (row == column)
+				R[row][column] = 0;
+			else
+				if (row != column)
+					R[row][column] = coeff[row][column];
+		}
+	int iter;
+	//printf("Enter the number of iterations:\n");
+	//scanf_s("%d", &iter);//enter the number of iterations
+	int ctr = 1;
+	int octr;
+	int sameAmount = 0;
+	while (sameAmount != 6)
+	{
+		for (octr = 0; octr < size; octr++) {
+			if (tempApprox[octr][0] - approx[octr][0] < 0.001 && ctr != 1) {
+				sameAmount++;
+			}
+			tempApprox[octr][0] = matrixRes[octr][0];
+		}
+
+		if (sameAmount == 6) {
+			break;
+		}
+		else if (sameAmount != 3) {
+			sameAmount = 0;
+		}
+
+		multiply(R, approx);//multiply L+U and the approximation
+		for (row = 0; row < size; row++)
+			temp[row][0] = b[row][0] - matrixRes[row][0];//the matrix(b-Rx)
+		multiply(Dinv, temp);//multiply D inverse and (b-Rx)
+		for (octr = 0; octr < size; octr++)
+			approx[octr][0] = matrixRes[octr][0];//store matrixRes value in the next approximation
+		printf("The Value after iteration %d is\n", ctr);
+		for (row = 0; row < size; row++){
+			printf("%.3f\n", approx[row][0]);//display the value after the pass
+		}
+		ctr++;
+	} 
 }
