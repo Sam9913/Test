@@ -3,7 +3,7 @@ The relation used is X(k+1)=(Diagonal matrix Inverse)(RHS Coefficient-)*(Lower t
 */
 #include <stdio.h>
 #include <omp.h>
-#define EPSILON 0.001
+#define EPSILON 0.000001
 
 char label[3] = { 'x','y','z' };
 float coeff[10][10];
@@ -14,7 +14,7 @@ float tempApprox[10][1];
 float R[10][10];//declare the relevant matrices
 float matrixRes[10][1];
 float b[10][1];
-int row, column, size = 3, navigate;
+int row = 0, column = 0, size = 3, navigate;
 void multiply(float matrixA[][10], float matrixB[][1])
 {
 	int ctr;
@@ -43,9 +43,12 @@ int main()
 
 	double start_time = omp_get_wtime();
 
+
+#pragma omp for private(row, column)
 	//calculating the diagonal inverse matrix make all other entries as zero except Diagonal entries 
 	//whose resciprocal stored
 	for (row = 0; row < size; row++)
+	{
 		for (column = 0; column < size; column++)
 		{
 			if (row == column)
@@ -53,9 +56,12 @@ int main()
 			else
 				Dinv[row][column] = 0;
 		}
+	}
 
+#pragma omp for private(row, column)
 	//calculating the R matrix L+U
 	for (row = 0; row < size; row++)
+	{
 		for (column = 0; column < size; column++)
 		{
 			if (row == column)
@@ -64,6 +70,7 @@ int main()
 				if (row != column)
 					R[row][column] = coeff[row][column];
 		}
+	}
 
 	int ctr = 1;
 	int octr;
@@ -88,6 +95,7 @@ int main()
 		multiply(R, approx);
 
 		//calculate the matrix(b-Rx) and store it to temp
+#pragma omp for schedule (guided, 8)
 		for (row = 0; row < size; row++)
 			temp[row][0] = b[row][0] - matrixRes[row][0];
 
@@ -95,6 +103,7 @@ int main()
 		multiply(Dinv, temp);
 
 		//store matrixRes value in the next approximation
+#pragma omp for schedule (guided, 8)
 		for (octr = 0; octr < size; octr++)
 			approx[octr][0] = matrixRes[octr][0];
 
@@ -103,7 +112,6 @@ int main()
 		for (row = 0; row < size; row++) {
 			printf("%c : %.3f\n", label[row], approx[row][0]);
 		}
-		ctr++;
 	}
 
 	double end_time = omp_get_wtime();
